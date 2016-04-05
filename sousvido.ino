@@ -44,7 +44,7 @@
 bool displayFahrenheit = true; // Set to true for F, false for C
 
 // Pause Button buffer
-bool buttonBuffer = 400; // tweak this if the pause button is acting up
+int buttonBuffer = 400; // tweak this if the pause button is acting up
 
 // State Machine
 //  Paused: The initial state, when nothing is happening. Toggle into or out of
@@ -68,15 +68,15 @@ DeviceAddress waterThermocouple;
 double Kp = 850, Ki = 0.5, Kd = 0.1; // Just some initial deault tuning values. These will be overridden by the autotuner.
 double currentTemp, pidOutput, targetTemp;
 PID myPID(&currentTemp, &pidOutput, &targetTemp, Kp, Ki, Kd, DIRECT);
-int pidControlRange = 10; // Only use the PID Controller when temp is within range
+int pidControlRange = 14; // Only use the PID Controller when temp is within range. Note: CELCIUS!
 
 // PID Time Proportional Output
-int windowSize = 1000; // 1 second TPO window
+int windowSize = 10000; // 10 second TPO window
 unsigned long windowStartTime;
 
 // PID Autotuner
 PID_ATune aTune(&currentTemp, &pidOutput);
-bool                tuning = false;
+bool               aTuning = false;
 double           aTuneStep = 500;
 double          aTuneNoise = 1;
 unsigned int aTuneLookBack = 20;
@@ -114,6 +114,11 @@ void setup() {
   sensors.setWaitForConversion(false); // Sets up the thermocouple to be asynchronous;
   sensors.requestTemperatures(); // start an initial async temp reading
 
+  // Setup the PID
+  myPID.SetTunings(Kp,Ki,Kd);
+  myPID.SetSampleTime(1000); // How often the PID is evaluated
+  myPID.SetOutputLimits(1000, windowSize);
+
   // Set up a Timer to run driveOutput() periodically. This is the driver for
   // the Time Proportional Output, engaging/disengaging the Heaters based on
   // the output from the PID Controller while in the RUNNING state.
@@ -148,7 +153,6 @@ void loop() {
       changeState(TUNING);
     }
   }
-
 
   switch (currState) {
     case PAUSED:
@@ -265,29 +269,35 @@ void rest() {
 //  ============================================================================
 void tune() {
   printTemps();
-  myPID.SetMode(AUTOMATIC);
-
-  if(tuning && aTune.Runtime()){
+  if(aTuning && aTune.Runtime()){
     // Tuning was started, and now it's done.
-    tuning = false;
+    Serial.println("Autotune complete.");
+    aTuning = false;
 
     // Extract the auto-tune calculated parameters
     Kp = aTune.GetKp();
     Ki = aTune.GetKi();
     Kd = aTune.GetKd();
 
+    myPID.SetTunings(Kp,Ki,Kd);
+
     changeState(RUNNING);
-  } else if(abs(targetTemp - currentTemp) < 0.5){
-    tuning = true;
+  } else if(!aTuning && abs(targetTemp - currentTemp) < 0.5){
     // Tuning hasn't been started yet, but we're within range.
+    Serial.println("Starting autotune.");
+    aTuning = true;
+    windowStartTime = millis();
+
     // set up the auto-tune parameters
     aTune.SetNoiseBand(aTuneNoise);
     aTune.SetOutputStep(aTuneStep);
     aTune.SetLookbackSec((int)aTuneLookBack);
     aTune.SetControlType(1); // Set the control type to PID (default is 0, PI)
+  } else if(!aTuning) {
+    // Autotuning hasn't been started yet; Fire up the PID
+    myPID.SetMode(AUTOMATIC);
+    myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
   }
-
-  myPID.SetTunings(Kp,Ki,Kd);
 }
 
 
@@ -299,14 +309,8 @@ void tune() {
 //  ============================================================================
 void run() {
   printTemps();
-  // Setup the PID Controller if it isn't already running
-  if(myPID.GetMode() != AUTOMATIC){
-    myPID.SetMode(AUTOMATIC);
-    myPID.SetTunings(Kp,Ki,Kd);
-    windowStartTime = millis();
-  }
 
-  myPID.Compute(); // Compute PID Output, which will be used driveOutput is run.
+  myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
 }
 
 
