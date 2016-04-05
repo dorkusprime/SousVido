@@ -117,7 +117,7 @@ void setup() {
   // Setup the PID
   myPID.SetTunings(Kp,Ki,Kd);
   myPID.SetSampleTime(1000); // How often the PID is evaluated
-  myPID.SetOutputLimits(1000, windowSize);
+  myPID.SetOutputLimits(500, windowSize);
 
   // Set up a Timer to run driveOutput() periodically. This is the driver for
   // the Time Proportional Output, engaging/disengaging the Heaters based on
@@ -296,7 +296,7 @@ void tune() {
   } else if(!aTuning) {
     // Autotuning hasn't been started yet; Fire up the PID
     myPID.SetMode(AUTOMATIC);
-    myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
+    windowStartTime = millis();
   }
 }
 
@@ -442,15 +442,20 @@ void syncTemps() {
 //  = Returns the target temperature from a 10k potentiometer in degrees C     =
 //  ============================================================================
 float gettargetTemp() {
-  // Read the current potentiometer position in 0-1023
-  int potPosition = analogRead(PotentiometerPin);
+  // Take 10 readings, to smooth out any potentiometer bumps
+  int samplesTotal = 0;
+  for (int i=0; i< 10 ; i++) {
+    samplesTotal += analogRead(PotentiometerPin);
+  }
+
+  // The average potentiometer position in 0-1023
+  float potPosition = (float)samplesTotal/10.0;
 
   // convert 0-1023 to 0 - 1
-  float normalizedpotPosition = (float)potPosition / 1023.0;
+  float normalizedpotPosition = potPosition / 1023.0;
 
   // Convert 0-1 to 48.9-100 (Celsius)
   float targetTemperature = normalizedpotPosition * 51.1 + 48.9;
 
   return targetTemperature;
 }
-
