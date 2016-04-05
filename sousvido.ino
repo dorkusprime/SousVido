@@ -167,8 +167,6 @@ void loop() {
       run();
       break;
   }
-
-
 }
 
 
@@ -198,8 +196,11 @@ void driveOutput() {
 
 
 //  ============================================================================
-//  = log                                                                      =
-//  = ---                                                                      =
+//  = printLog                                                                 =
+//  = --------                                                                 =
+//  = Compares incoming log lines with the previous ones, and prints them out  =
+//  = when they've changed.                                                    =
+//  = Note: This is temporary, to be replaced with an LCD output.              =
 //  ============================================================================
 void printLog(String lineOne, String lineTwo) {
   if(logLines[0] != lineOne || logLines[1] != lineTwo){
