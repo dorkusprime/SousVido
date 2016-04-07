@@ -483,7 +483,11 @@ float celsiusToFahrenheit(float celsius) {
 void syncTemps() {
   if(sensors.isConversionAvailable(0)) {
     // If there is a temperature reading available, grab it and start another async reading.
-    currentTemp = sensors.getTempC(thermocouple);
+    double response = sensors.getTempC(thermocouple);
+    if(response > 0){
+      // allow for thermocouple weirdness
+      currentTemp = (currentTemp + response) / 2;
+    }
     sensors.requestTemperatures();
   }
   targetTemp = gettargetTemp();
