@@ -34,10 +34,20 @@
 //  = Pin Definitions =
 //  ===================
 #define PotentiometerPin A0
-#define  ThermocouplePin 2
-#define     HeaterLEDPin 3
-#define        HeaterPin 4
-#define        ButtonPin 5
+#define  ThermocouplePin 8
+#define   ReadyBuzzerPin 9
+#define      ReadyLEDPin 10
+#define        HeaterPin 11
+#define        ButtonPin 12
+#define          PumpPin 13
+
+// LCD Bus Pins
+#define           LCD_RS 2
+#define           LCD_EN 3
+#define          LCD_DB4 4
+#define          LCD_DB5 5
+#define          LCD_DB6 6
+#define          LCD_DB7 7
 
 
 
@@ -63,15 +73,18 @@ State prevState = PRIMING; // Setting the state after unpausing
 long stateChangedAt = 0;
 
 // initialize the LCD library with the numbers of the interface pins
-LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_DB4, LCD_DB5, LCD_DB6, LCD_DB7);
 
 // Thermocouple
 OneWire oneWire(ThermocouplePin);
 DallasTemperature sensors(&oneWire);
-DeviceAddress waterThermocouple;
+DeviceAddress thermocouple;
 
 // PID Controller
-double Kp = 850, Ki = 0.5, Kd = 0.1; // Just some initial deault tuning values. These will be overridden by the autotuner.
+double defaultKp = 850;
+double defaultKi = 0.5;
+double defaultKd = 0.1;
+double Kp = defaultKp, Ki = defaultKi, Kd = defaultKd;
 double currentTemp, pidOutput, targetTemp;
 PID myPID(&currentTemp, &pidOutput, &targetTemp, Kp, Ki, Kd, DIRECT);
 int pidControlRange = 14; // Only use the PID Controller when temp is within range. Note: CELCIUS!
@@ -87,8 +100,10 @@ double           aTuneStep = 500;
 double          aTuneNoise = 1;
 unsigned int aTuneLookBack = 20;
 
-// Serial Output
+// LCD Output
 String logLines[2] = {"Start", "End"};
+
+
 
 //  =========
 //  = Setup =
@@ -103,28 +118,30 @@ void setup() {
   printLCD("SousVido v0.10", "by Jevon Wild");
 
   // Setup Pins
-  pinMode(HeaterLEDPin,      OUTPUT);
-  pinMode(HeaterPin,         OUTPUT);
-  pinMode(ThermocouplePin,   INPUT);
-  pinMode(ButtonPin,         INPUT);
-  digitalWrite(HeaterLEDPin, LOW);
-  digitalWrite(HeaterPin,    LOW);
+  pinMode(HeaterPin,        OUTPUT);
+  pinMode(ReadyLEDPin,      OUTPUT);
+  pinMode(ReadyBuzzerPin,   OUTPUT);
+
+  pinMode(ButtonPin,        INPUT);
+  pinMode(ThermocouplePin,  INPUT);
+
+  digitalWrite(HeaterPin,   LOW);
 
   // Initialize the thermocouple
   sensors.begin();
-  if (!sensors.getAddress(waterThermocouple, 0)) {
+  if (!sensors.getAddress(thermocouple, 0)) {
     // If there's no Thermocouple found, do not continue.
     Serial.println("Error: Thermocouple Not Found.");
-    // while(!sensors.getAddress(waterThermocouple, 0)) {
-    //   delay(1000);
-    // }
+    Serial.println(sensors.getAddress(thermocouple, 0));
+    while(!sensors.getAddress(thermocouple, 0)) {
+      delay(1000);
+    }
   }
-  sensors.setResolution(waterThermocouple, 12); // Maximum/slowest resolution is 12. Minimum/fastest is 9.
+  sensors.setResolution(thermocouple, 12); // Maximum/slowest resolution is 12. Minimum/fastest is 9.
   sensors.setWaitForConversion(false); // Sets up the thermocouple to be asynchronous;
   sensors.requestTemperatures(); // start an initial async temp reading
 
   // Setup the PID
-  myPID.SetTunings(Kp,Ki,Kd);
   myPID.SetSampleTime(1000); // How often the PID is evaluated
   myPID.SetOutputLimits(500, windowSize);
 
@@ -157,8 +174,7 @@ void loop() {
       changeState(PRIMING);
     } else if(error < -pidControlRange) {
       changeState(RESTING);
-    } else if (currState != RUNNING && currState != TUNING) {
-      // We're within PID Control Range – time for a tune!
+    } else if (currState != RUNNING && currState != TUNING && abs(error) < (pidControlRange * 0.5)) {
       changeState(TUNING);
     }
   }
@@ -180,6 +196,116 @@ void loop() {
       run();
       break;
   }
+}
+
+
+//  ============================================================================
+//  = Pause                                                                    =
+//  = -----                                                                    =
+//  = The State handler for "PAUSED"                                           =
+//  ============================================================================
+void pause() {
+  digitalWrite(ReadyLEDPin, LOW);
+  myPID.SetMode(MANUAL);
+  disengageHeaters();
+  printLCD(" --- PAUSED --- ", "");
+}
+
+
+
+//  ============================================================================
+//  = Prime                                                                    =
+//  = -----                                                                    =
+//  = The State handler for "PRIMING"                                          =
+//  ============================================================================
+void prime() {
+  printTemps();
+  digitalWrite(ReadyLEDPin, LOW);
+  myPID.SetMode(MANUAL);
+  engageHeaters();
+}
+
+
+
+//  ============================================================================
+//  = Rest                                                                     =
+//  = ----                                                                     =
+//  = The State handler for "RESTING"                                          =
+//  ============================================================================
+void rest() {
+  printTemps();
+  digitalWrite(ReadyLEDPin, LOW);
+  myPID.SetMode(MANUAL);
+  disengageHeaters();
+
+  float error = targetTemp - currentTemp;
+  if(error > pidControlRange) {
+    changeState(PRIMING);
+  } else if(error > -10) {
+    changeState(TUNING);
+  }
+}
+
+
+
+//  ============================================================================
+//  = Tune                                                                     =
+//  = ----                                                                     =
+//  = The State handler for "TUNING"                                           =
+//  ============================================================================
+void tune() {
+  printTemps();
+  digitalWrite(ReadyLEDPin, LOW);
+  if(myPID.GetMode() != AUTOMATIC) {
+    // Fire up the PID!
+    myPID.SetMode(AUTOMATIC);
+    windowStartTime = millis();
+  }
+
+  if(aTuning && aTune.Runtime()){
+    // Tuning was started, and now it's done.
+    Serial.println("Autotune complete.");
+    aTuning = false;
+
+    // Extract the auto-tune calculated parameters
+    Kp = aTune.GetKp();
+    Ki = aTune.GetKi();
+    Kd = aTune.GetKd();
+
+    myPID.SetTunings(Kp, Ki, Kd);
+
+    changeState(RUNNING);
+    playReadyBuzzer();
+  } else if(!aTuning && abs(targetTemp - currentTemp) < 0.5){
+    // Tuning hasn't been started yet, but we're within range. Start it!
+    Serial.println("Starting autotune.");
+    aTuning = true;
+    windowStartTime = millis();
+
+    Kp = defaultKp, Ki = defaultKi, Kd = defaultKd;
+    myPID.SetTunings(Kp, Ki, Kd);
+
+    // set up the auto-tune parameters
+    aTune.SetNoiseBand(aTuneNoise);
+    aTune.SetOutputStep(aTuneStep);
+    aTune.SetLookbackSec((int)aTuneLookBack);
+    aTune.SetControlType(1); // Set the control type to PID (default is 0, PI)
+  }
+
+  myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
+}
+
+
+
+//  ============================================================================
+//  = Run                                                                      =
+//  = ---                                                                      =
+//  = The State handler for "RUNNING"                                          =
+//  ============================================================================
+void run() {
+  printTemps();
+
+  myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
 }
 
 
@@ -208,6 +334,7 @@ void driveOutput() {
 }
 
 
+
 //  ============================================================================
 //  = printLCD                                                                 =
 //  = --------                                                                 =
@@ -219,109 +346,16 @@ void printLCD(String lineOne, String lineTwo) {
   if(logLines[0] != lineOne || logLines[1] != lineTwo){
     logLines[0] = lineOne;
     logLines[1] = lineTwo;
+
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print(lineOne);
+    lcd.print("                ");
     lcd.setCursor(0, 1);
     lcd.print(lineTwo);
+    lcd.print("                ");
+
   }
-}
-
-
-//  ============================================================================
-//  = Pause                                                                    =
-//  = -----                                                                    =
-//  = The State handler for "PAUSED"                                           =
-//  ============================================================================
-void pause() {
-  myPID.SetMode(MANUAL);
-  disengageHeaters();
-}
-
-
-
-//  ============================================================================
-//  = Prime                                                                    =
-//  = -----                                                                    =
-//  = The State handler for "PRIMING"                                          =
-//  ============================================================================
-void prime() {
-  printTemps();
-  myPID.SetMode(MANUAL);
-  engageHeaters();
-}
-
-
-
-//  ============================================================================
-//  = Rest                                                                     =
-//  = ----                                                                     =
-//  = The State handler for "RESTING"                                          =
-//  ============================================================================
-void rest() {
-  printTemps();
-  myPID.SetMode(MANUAL);
-  disengageHeaters();
-
-  float error = targetTemp - currentTemp;
-  if(error > pidControlRange) {
-    changeState(PRIMING);
-  } else if(error > -10) {
-    changeState(TUNING);
-  }
-}
-
-
-
-//  ============================================================================
-//  = Tune                                                                     =
-//  = ----                                                                     =
-//  = The State handler for "TUNING"                                           =
-//  ============================================================================
-void tune() {
-  printTemps();
-  if(aTuning && aTune.Runtime()){
-    // Tuning was started, and now it's done.
-    Serial.println("Autotune complete.");
-    aTuning = false;
-
-    // Extract the auto-tune calculated parameters
-    Kp = aTune.GetKp();
-    Ki = aTune.GetKi();
-    Kd = aTune.GetKd();
-
-    myPID.SetTunings(Kp,Ki,Kd);
-
-    changeState(RUNNING);
-  } else if(!aTuning && abs(targetTemp - currentTemp) < 0.5){
-    // Tuning hasn't been started yet, but we're within range.
-    Serial.println("Starting autotune.");
-    aTuning = true;
-    windowStartTime = millis();
-
-    // set up the auto-tune parameters
-    aTune.SetNoiseBand(aTuneNoise);
-    aTune.SetOutputStep(aTuneStep);
-    aTune.SetLookbackSec((int)aTuneLookBack);
-    aTune.SetControlType(1); // Set the control type to PID (default is 0, PI)
-  } else if(!aTuning) {
-    // Autotuning hasn't been started yet; Fire up the PID
-    myPID.SetMode(AUTOMATIC);
-    windowStartTime = millis();
-  }
-}
-
-
-
-//  ============================================================================
-//  = Run                                                                      =
-//  = ---                                                                      =
-//  = The State handler for "RUNNING"                                          =
-//  ============================================================================
-void run() {
-  printTemps();
-
-  myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
 }
 
 
@@ -332,7 +366,6 @@ void run() {
 //  = Turns off the heaters via HeaterPin                                      =
 //  ============================================================================
 void disengageHeaters() {
-  digitalWrite(HeaterLEDPin, LOW);
   digitalWrite(HeaterPin, LOW);
 }
 
@@ -344,8 +377,28 @@ void disengageHeaters() {
 //  = Turns on the heaters via HeaterPin                                       =
 //  ============================================================================
 void engageHeaters() {
-  digitalWrite(HeaterLEDPin, HIGH);
   digitalWrite(HeaterPin, HIGH);
+}
+
+
+
+//  ============================================================================
+//  = playReadyBuzzer                                                          =
+//  = ---------------                                                          =
+//  = Plays the buzzer                                                         =
+//  ============================================================================
+void playReadyBuzzer() {
+  digitalWrite(ReadyBuzzerPin, HIGH);
+  delay(200);
+  digitalWrite(ReadyBuzzerPin, LOW);
+  delay(100);
+  digitalWrite(ReadyBuzzerPin, HIGH);
+  delay(200);
+  digitalWrite(ReadyBuzzerPin, LOW);
+  delay(100);
+  digitalWrite(ReadyBuzzerPin, HIGH);
+  delay(200);
+  digitalWrite(ReadyBuzzerPin, LOW);
 }
 
 
@@ -433,7 +486,7 @@ float celsiusToFahrenheit(float celsius) {
 void syncTemps() {
   if(sensors.isConversionAvailable(0)) {
     // If there is a temperature reading available, grab it and start another async reading.
-    currentTemp = sensors.getTempC(waterThermocouple);
+    currentTemp = sensors.getTempC(thermocouple);
     sensors.requestTemperatures();
   }
   targetTemp = gettargetTemp();
