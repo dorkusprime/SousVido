@@ -100,8 +100,10 @@ double           aTuneStep = 500;
 double          aTuneNoise = 1;
 unsigned int aTuneLookBack = 20;
 
-// Serial Output
+// LCD Output
 String logLines[2] = {"Start", "End"};
+
+
 
 //  =========
 //  = Setup =
@@ -282,7 +284,7 @@ void tune() {
     aTune.SetControlType(1); // Set the control type to PID (default is 0, PI)
   }
 
-  myPID.Compute();
+  myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
 }
 
 
