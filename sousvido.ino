@@ -34,10 +34,20 @@
 //  = Pin Definitions =
 //  ===================
 #define PotentiometerPin A0
-#define  ThermocouplePin 2
-#define     HeaterLEDPin 3
-#define        HeaterPin 4
-#define        ButtonPin 5
+#define  ThermocouplePin 8
+#define   ReadyBuzzerPin 9
+#define      ReadyLEDPin 10
+#define        HeaterPin 11
+#define        ButtonPin 12
+#define          PumpPin 13
+
+// LCD Bus Pins
+#define           LCD_RS 2
+#define           LCD_EN 3
+#define          LCD_DB4 4
+#define          LCD_DB5 5
+#define          LCD_DB6 6
+#define          LCD_DB7 7
 
 
 
@@ -63,7 +73,7 @@ State prevState = PRIMING; // Setting the state after unpausing
 long stateChangedAt = 0;
 
 // initialize the LCD library with the numbers of the interface pins
-LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_DB4, LCD_DB5, LCD_DB6, LCD_DB7);
 
 // Thermocouple
 OneWire oneWire(ThermocouplePin);
@@ -206,6 +216,7 @@ void driveOutput() {
     }
   }
 }
+
 
 
 //  ============================================================================
