@@ -145,10 +145,10 @@ void setup() {
   myPID.SetSampleTime(1000); // How often the PID is evaluated
   myPID.SetOutputLimits(500, windowSize);
 
-  // Set up a Timer to run driveOutput() periodically. This is the driver for
+  // Set up a Timer to run driveOutputAsync() periodically. This is the driver for
   // the Time Proportional Output, engaging/disengaging the Heaters based on
   // the output from the PID Controller while in the RUNNING state.
-  MsTimer2::set(10, driveOutput); // 10ms period
+  MsTimer2::set(10, driveOutputAsync); // 10ms period
   MsTimer2::start();
 
   delay(3000);
@@ -289,7 +289,7 @@ void tune() {
     aTune.SetControlType(1); // Set the control type to PID (default is 0, PI)
   }
 
-  myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
+  myPID.Compute(); // Compute PID Output, which will be used when driveOutputAsync is run.
 }
 
 
@@ -301,20 +301,21 @@ void tune() {
 //  ============================================================================
 void run() {
   printTemps();
+  digitalWrite(ReadyLEDPin, HIGH);
 
-  myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
+  myPID.Compute(); // Compute PID Output, which will be used when driveOutputAsync is run.
 }
 
 
 
 //  ============================================================================
-//  = driveOutput                                                              =
-//  = -----------                                                              =
+//  = driveOutputAsync                                                         =
+//  = ----------------                                                         =
 //  = This is the driver for the Time Proportional Output, engaging or         =
 //  = disengaging the Heaters based on the output from the PIDController while =
 //  = in the RUNNING state.                                                    =
 //  ============================================================================
-void driveOutput() {
+void driveOutputAsync() {
   long now = millis();
 
   // "on time" is proportional to the PID output
