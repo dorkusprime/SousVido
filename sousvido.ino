@@ -78,10 +78,13 @@ LiquidCrystal lcd(LCD_RS, LCD_EN, LCD_DB4, LCD_DB5, LCD_DB6, LCD_DB7);
 // Thermocouple
 OneWire oneWire(ThermocouplePin);
 DallasTemperature sensors(&oneWire);
-DeviceAddress waterThermocouple;
+DeviceAddress thermocouple;
 
 // PID Controller
-double Kp = 850, Ki = 0.5, Kd = 0.1; // Just some initial deault tuning values. These will be overridden by the autotuner.
+double defaultKp = 850;
+double defaultKi = 0.5;
+double defaultKd = 0.1;
+double Kp = defaultKp, Ki = defaultKi, Kd = defaultKd;
 double currentTemp, pidOutput, targetTemp;
 PID myPID(&currentTemp, &pidOutput, &targetTemp, Kp, Ki, Kd, DIRECT);
 int pidControlRange = 14; // Only use the PID Controller when temp is within range. Note: CELCIUS!
@@ -122,19 +125,19 @@ void setup() {
 
   // Initialize the thermocouple
   sensors.begin();
-  if (!sensors.getAddress(waterThermocouple, 0)) {
+  if (!sensors.getAddress(thermocouple, 0)) {
     // If there's no Thermocouple found, do not continue.
     Serial.println("Error: Thermocouple Not Found.");
-    // while(!sensors.getAddress(waterThermocouple, 0)) {
-    //   delay(1000);
-    // }
+    Serial.println(sensors.getAddress(thermocouple, 0));
+    while(!sensors.getAddress(thermocouple, 0)) {
+      delay(1000);
+    }
   }
-  sensors.setResolution(waterThermocouple, 12); // Maximum/slowest resolution is 12. Minimum/fastest is 9.
+  sensors.setResolution(thermocouple, 12); // Maximum/slowest resolution is 12. Minimum/fastest is 9.
   sensors.setWaitForConversion(false); // Sets up the thermocouple to be asynchronous;
   sensors.requestTemperatures(); // start an initial async temp reading
 
   // Setup the PID
-  myPID.SetTunings(Kp,Ki,Kd);
   myPID.SetSampleTime(1000); // How often the PID is evaluated
   myPID.SetOutputLimits(500, windowSize);
 
@@ -167,8 +170,7 @@ void loop() {
       changeState(PRIMING);
     } else if(error < -pidControlRange) {
       changeState(RESTING);
-    } else if (currState != RUNNING && currState != TUNING) {
-      // We're within PID Control Range – time for a tune!
+    } else if (currState != RUNNING && currState != TUNING && abs(error) < (pidControlRange * 0.5)) {
       changeState(TUNING);
     }
   }
@@ -245,6 +247,12 @@ void rest() {
 //  ============================================================================
 void tune() {
   printTemps();
+  if(myPID.GetMode() != AUTOMATIC) {
+    // Fire up the PID!
+    myPID.SetMode(AUTOMATIC);
+    windowStartTime = millis();
+  }
+
   if(aTuning && aTune.Runtime()){
     // Tuning was started, and now it's done.
     Serial.println("Autotune complete.");
@@ -255,25 +263,26 @@ void tune() {
     Ki = aTune.GetKi();
     Kd = aTune.GetKd();
 
-    myPID.SetTunings(Kp,Ki,Kd);
+    myPID.SetTunings(Kp, Ki, Kd);
 
     changeState(RUNNING);
   } else if(!aTuning && abs(targetTemp - currentTemp) < 0.5){
-    // Tuning hasn't been started yet, but we're within range.
+    // Tuning hasn't been started yet, but we're within range. Start it!
     Serial.println("Starting autotune.");
     aTuning = true;
     windowStartTime = millis();
+
+    Kp = defaultKp, Ki = defaultKi, Kd = defaultKd;
+    myPID.SetTunings(Kp, Ki, Kd);
 
     // set up the auto-tune parameters
     aTune.SetNoiseBand(aTuneNoise);
     aTune.SetOutputStep(aTuneStep);
     aTune.SetLookbackSec((int)aTuneLookBack);
     aTune.SetControlType(1); // Set the control type to PID (default is 0, PI)
-  } else if(!aTuning) {
-    // Autotuning hasn't been started yet; Fire up the PID
-    myPID.SetMode(AUTOMATIC);
-    windowStartTime = millis();
   }
+
+  myPID.Compute();
 }
 
 
@@ -444,7 +453,7 @@ float celsiusToFahrenheit(float celsius) {
 void syncTemps() {
   if(sensors.isConversionAvailable(0)) {
     // If there is a temperature reading available, grab it and start another async reading.
-    currentTemp = sensors.getTempC(waterThermocouple);
+    currentTemp = sensors.getTempC(thermocouple);
     sensors.requestTemperatures();
   }
   targetTemp = gettargetTemp();
