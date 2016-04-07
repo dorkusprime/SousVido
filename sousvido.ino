@@ -118,12 +118,14 @@ void setup() {
   printLCD("SousVido v0.10", "by Jevon Wild");
 
   // Setup Pins
-  pinMode(HeaterLEDPin,      OUTPUT);
-  pinMode(HeaterPin,         OUTPUT);
-  pinMode(ThermocouplePin,   INPUT);
-  pinMode(ButtonPin,         INPUT);
-  digitalWrite(HeaterLEDPin, LOW);
-  digitalWrite(HeaterPin,    LOW);
+  pinMode(HeaterPin,        OUTPUT);
+  pinMode(ReadyLEDPin,      OUTPUT);
+  pinMode(ReadyBuzzerPin,   OUTPUT);
+
+  pinMode(ButtonPin,        INPUT);
+  pinMode(ThermocouplePin,  INPUT);
+
+  digitalWrite(HeaterPin,   LOW);
 
   // Initialize the thermocouple
   sensors.begin();
@@ -203,8 +205,10 @@ void loop() {
 //  = The State handler for "PAUSED"                                           =
 //  ============================================================================
 void pause() {
+  digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
   disengageHeaters();
+  printLCD(" --- PAUSED --- ", "");
 }
 
 
@@ -216,6 +220,7 @@ void pause() {
 //  ============================================================================
 void prime() {
   printTemps();
+  digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
   engageHeaters();
 }
@@ -229,6 +234,7 @@ void prime() {
 //  ============================================================================
 void rest() {
   printTemps();
+  digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
   disengageHeaters();
 
@@ -249,6 +255,7 @@ void rest() {
 //  ============================================================================
 void tune() {
   printTemps();
+  digitalWrite(ReadyLEDPin, LOW);
   if(myPID.GetMode() != AUTOMATIC) {
     // Fire up the PID!
     myPID.SetMode(AUTOMATIC);
@@ -268,6 +275,7 @@ void tune() {
     myPID.SetTunings(Kp, Ki, Kd);
 
     changeState(RUNNING);
+    playReadyBuzzer();
   } else if(!aTuning && abs(targetTemp - currentTemp) < 0.5){
     // Tuning hasn't been started yet, but we're within range. Start it!
     Serial.println("Starting autotune.");
@@ -338,11 +346,15 @@ void printLCD(String lineOne, String lineTwo) {
   if(logLines[0] != lineOne || logLines[1] != lineTwo){
     logLines[0] = lineOne;
     logLines[1] = lineTwo;
+
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print(lineOne);
+    lcd.print("                ");
     lcd.setCursor(0, 1);
     lcd.print(lineTwo);
+    lcd.print("                ");
+
   }
 }
 
@@ -354,7 +366,6 @@ void printLCD(String lineOne, String lineTwo) {
 //  = Turns off the heaters via HeaterPin                                      =
 //  ============================================================================
 void disengageHeaters() {
-  digitalWrite(HeaterLEDPin, LOW);
   digitalWrite(HeaterPin, LOW);
 }
 
@@ -366,8 +377,28 @@ void disengageHeaters() {
 //  = Turns on the heaters via HeaterPin                                       =
 //  ============================================================================
 void engageHeaters() {
-  digitalWrite(HeaterLEDPin, HIGH);
   digitalWrite(HeaterPin, HIGH);
+}
+
+
+
+//  ============================================================================
+//  = playReadyBuzzer                                                          =
+//  = ---------------                                                          =
+//  = Plays the buzzer                                                         =
+//  ============================================================================
+void playReadyBuzzer() {
+  digitalWrite(ReadyBuzzerPin, HIGH);
+  delay(200);
+  digitalWrite(ReadyBuzzerPin, LOW);
+  delay(100);
+  digitalWrite(ReadyBuzzerPin, HIGH);
+  delay(200);
+  digitalWrite(ReadyBuzzerPin, LOW);
+  delay(100);
+  digitalWrite(ReadyBuzzerPin, HIGH);
+  delay(200);
+  digitalWrite(ReadyBuzzerPin, LOW);
 }
 
 
