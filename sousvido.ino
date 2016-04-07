@@ -11,6 +11,9 @@
 
 */
 
+// LiquidCrystal LCD Library
+#include <LiquidCrystal.h>
+
 // Libraries for the PID control system and autotune
 #include <PID_v1.h>
 #include <PID_AutoTune_v0.h>
@@ -59,6 +62,9 @@ State currState = PAUSED; // Setting the initial state
 State prevState = PRIMING; // Setting the state after unpausing
 long stateChangedAt = 0;
 
+// initialize the LCD library with the numbers of the interface pins
+LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+
 // Thermocouple
 OneWire oneWire(ThermocouplePin);
 DallasTemperature sensors(&oneWire);
@@ -90,8 +96,11 @@ String logLines[2] = {"Start", "End"};
 void setup() {
   Serial.begin(9600);
 
+  // set up the LCD's number of columns and rows:
+  lcd.begin(16, 2);
+
   // Splash Screen
-  printLog("SousVido v0.01", "by Jevon Wild");
+  printLCD("SousVido v0.10", "by Jevon Wild");
 
   // Setup Pins
   pinMode(HeaterLEDPin,      OUTPUT);
@@ -125,10 +134,10 @@ void setup() {
   MsTimer2::set(10, driveOutput); // 10ms period
   MsTimer2::start();
 
-  delay(1000);
+  delay(2000);
   // Pause notification.
-  printLog("Unpause when", "ready.");
-  delay(1000);
+  printLCD("Unpause when", "ready.");
+  delay(2000);
 }
 
 
@@ -200,19 +209,21 @@ void driveOutput() {
 
 
 //  ============================================================================
-//  = printLog                                                                 =
+//  = printLCD                                                                 =
 //  = --------                                                                 =
 //  = Compares incoming log lines with the previous ones, and prints them out  =
 //  = when they've changed.                                                    =
 //  = Note: This is temporary, to be replaced with an LCD output.              =
 //  ============================================================================
-void printLog(String lineOne, String lineTwo) {
+void printLCD(String lineOne, String lineTwo) {
   if(logLines[0] != lineOne || logLines[1] != lineTwo){
     logLines[0] = lineOne;
     logLines[1] = lineTwo;
-    Serial.println("================");
-    Serial.println(logLines[0]);
-    Serial.println(logLines[1]);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(lineOne);
+    lcd.setCursor(0, 1);
+    lcd.print(lineTwo);
   }
 }
 
@@ -348,19 +359,13 @@ void printTemps() {
   String displayCurrentTemp = tempString(currentTemp, displayFahrenheit);
   String displayTargetTemp = tempString(targetTemp, displayFahrenheit);
 
-  String stateNames[5] = { "PAUSED", "PRIMING", "RESTING", "TUNING", "RUNNING" };
-  String lineOne = "State: ";
-  lineOne += stateNames[currState];
-  String lineTwo;
-  lineTwo += "cur: ";
-  lineTwo += displayCurrentTemp;
-  lineTwo += "  tar: ";
+  String lineOne = "    Temp: ";
+  lineOne += displayCurrentTemp;
+
+  String lineTwo = "  Target: ";
   lineTwo += displayTargetTemp;
 
-  printLog(lineOne, lineTwo);
-
-  // Serial.println("Current: " + displayCurrentTemp);
-  // Serial.println(" Target: " + displayTargetTemp);
+  printLCD(lineOne, lineTwo);
 }
 
 
