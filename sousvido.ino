@@ -193,52 +193,6 @@ void loop() {
 }
 
 
-
-//  ============================================================================
-//  = driveOutput                                                              =
-//  = -----------                                                              =
-//  = This is the driver for the Time Proportional Output, engaging or         =
-//  = disengaging the Heaters based on the output from the PIDController while =
-//  = in the RUNNING state.                                                    =
-//  ============================================================================
-void driveOutput() {
-  long now = millis();
-
-  // "on time" is proportional to the PID output
-  if(currState == RUNNING || currState == TUNING) {
-    if((now - windowStartTime) > windowSize) {
-      windowStartTime += windowSize;
-    }
-    if((pidOutput > 100) && (pidOutput > (now - windowStartTime))) {
-      engageHeaters();
-    } else {
-      disengageHeaters();
-    }
-  }
-}
-
-
-
-//  ============================================================================
-//  = printLCD                                                                 =
-//  = --------                                                                 =
-//  = Compares incoming log lines with the previous ones, and prints them out  =
-//  = when they've changed.                                                    =
-//  = Note: This is temporary, to be replaced with an LCD output.              =
-//  ============================================================================
-void printLCD(String lineOne, String lineTwo) {
-  if(logLines[0] != lineOne || logLines[1] != lineTwo){
-    logLines[0] = lineOne;
-    logLines[1] = lineTwo;
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print(lineOne);
-    lcd.setCursor(0, 1);
-    lcd.print(lineTwo);
-  }
-}
-
-
 //  ============================================================================
 //  = Pause                                                                    =
 //  = -----                                                                    =
@@ -333,6 +287,52 @@ void run() {
   printTemps();
 
   myPID.Compute(); // Compute PID Output, which will be used when driveOutput is run.
+}
+
+
+
+//  ============================================================================
+//  = driveOutput                                                              =
+//  = -----------                                                              =
+//  = This is the driver for the Time Proportional Output, engaging or         =
+//  = disengaging the Heaters based on the output from the PIDController while =
+//  = in the RUNNING state.                                                    =
+//  ============================================================================
+void driveOutput() {
+  long now = millis();
+
+  // "on time" is proportional to the PID output
+  if(currState == RUNNING || currState == TUNING) {
+    if((now - windowStartTime) > windowSize) {
+      windowStartTime += windowSize;
+    }
+    if((pidOutput > 100) && (pidOutput > (now - windowStartTime))) {
+      engageHeaters();
+    } else {
+      disengageHeaters();
+    }
+  }
+}
+
+
+
+//  ============================================================================
+//  = printLCD                                                                 =
+//  = --------                                                                 =
+//  = Compares incoming log lines with the previous ones, and prints them out  =
+//  = when they've changed.                                                    =
+//  = Note: This is temporary, to be replaced with an LCD output.              =
+//  ============================================================================
+void printLCD(String lineOne, String lineTwo) {
+  if(logLines[0] != lineOne || logLines[1] != lineTwo){
+    logLines[0] = lineOne;
+    logLines[1] = lineTwo;
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(lineOne);
+    lcd.setCursor(0, 1);
+    lcd.print(lineTwo);
+  }
 }
 
 
