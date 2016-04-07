@@ -151,10 +151,7 @@ void setup() {
   MsTimer2::set(10, driveOutput); // 10ms period
   MsTimer2::start();
 
-  delay(2000);
-  // Pause notification.
-  printLCD("Unpause when", "ready.");
-  delay(2000);
+  delay(3000);
 }
 
 
