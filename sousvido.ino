@@ -56,9 +56,9 @@
 
 
 
-//  ==========================
-//  = Buzzer Tone Deinitions =
-//  ==========================
+//  ===========================
+//  = Buzzer Tone Definitions =
+//  ===========================
 #define  tone_c     3830    // 261 Hz
 #define  tone_d     3400    // 294 Hz
 #define  tone_e     3038    // 329 Hz
