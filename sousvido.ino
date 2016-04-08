@@ -84,9 +84,8 @@ DeviceAddress thermocouple;
 double defaultKp = 850;
 double defaultKi = 0.5;
 double defaultKd = 0.1;
-double Kp = defaultKp, Ki = defaultKi, Kd = defaultKd;
 double currentTemp, pidOutput, targetTemp;
-PID myPID(&currentTemp, &pidOutput, &targetTemp, Kp, Ki, Kd, DIRECT);
+PID myPID(&currentTemp, &pidOutput, &targetTemp, defaultKp, defaultKi, defaultKd, DIRECT);
 int pidDeactivationRange = 14; // Deactivate the PID Controller when temp falls out of range. Note: CELCIUS!
 int pidActivationRange = 1; // Only activate the PID Controller when temp is within range. Note: CELCIUS!
 
@@ -258,23 +257,19 @@ void tune() {
     Serial.println("Autotune complete.");
     aTuning = false;
 
-    // Extract the auto-tune calculated parameters
-    Kp = aTune.GetKp();
-    Ki = aTune.GetKi();
-    Kd = aTune.GetKd();
-
-    myPID.SetTunings(Kp, Ki, Kd);
+    // Set the K parameters to our newly autotuned ones
+    myPID.SetTunings(aTune.GetKp(), aTune.GetKi(), aTune.GetKd());
 
     changeState(RUNNING);
     playReadyBuzzer();
   } else if(!aTuning && abs(targetTemp - currentTemp) < 0.5){
-    // Tuning hasn't been started yet, but we're within range. Start it!
+    // Autotuning hasn't been started yet, but we're within range. Start it!
     Serial.println("Starting autotune.");
     aTuning = true;
     windowStartTime = millis();
 
-    Kp = defaultKp, Ki = defaultKi, Kd = defaultKd;
-    myPID.SetTunings(Kp, Ki, Kd);
+    // If we're TUNING, make sure we start off with default K parameters.
+    myPID.SetTunings(defaultKp, defaultKi, defaultKd);
 
     // set up the auto-tune parameters
     aTune.SetNoiseBand(aTuneNoise);
