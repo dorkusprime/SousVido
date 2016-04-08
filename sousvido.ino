@@ -87,7 +87,8 @@ double defaultKd = 0.1;
 double Kp = defaultKp, Ki = defaultKi, Kd = defaultKd;
 double currentTemp, pidOutput, targetTemp;
 PID myPID(&currentTemp, &pidOutput, &targetTemp, Kp, Ki, Kd, DIRECT);
-int pidControlRange = 14; // Only use the PID Controller when temp is within range. Note: CELCIUS!
+int pidDeactivationRange = 14; // Deactivate the PID Controller when temp falls out of range. Note: CELCIUS!
+int pidActivationRange = 1; // Only activate the PID Controller when temp is within range. Note: CELCIUS!
 
 // PID Time Proportional Output
 int windowSize = 10000; // 10 second TPO window
@@ -167,11 +168,11 @@ void loop() {
   // Change state if temperature is out of PID range
   if(currState != PAUSED){
     float error = targetTemp - currentTemp;
-    if(error > pidControlRange){
+    if(error > pidDeactivationRange){
       changeState(PRIMING);
-    } else if(error < -pidControlRange) {
+    } else if(error < -pidDeactivationRange) {
       changeState(RESTING);
-    } else if (currState != RUNNING && currState != TUNING && abs(error) < (pidControlRange * 0.5)) {
+    } else if (currState != RUNNING && abs(error) < (pidActivationRange)) {
       changeState(TUNING);
     }
   }
@@ -234,13 +235,6 @@ void rest() {
   digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
   disengageHeaters();
-
-  float error = targetTemp - currentTemp;
-  if(error > pidControlRange) {
-    changeState(PRIMING);
-  } else if(error > -10) {
-    changeState(TUNING);
-  }
 }
 
 
