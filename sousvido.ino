@@ -22,8 +22,11 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// WAY more readable than using the Timer/Counter Control Register directly
+// WAY more readable code than using the Timer/Counter Control Register directly
 #include <MsTimer2.h>
+
+// Simplify pin interrupt code similar to MsTimer2
+#include <EnableInterrupt.h>
 
 // Math is FUN! But srsly, let's use a library to handle it.
 #include <math.h>
@@ -48,6 +51,20 @@
 #define          LCD_DB5 5
 #define          LCD_DB6 6
 #define          LCD_DB7 7
+
+
+
+//  ==========================
+//  = Buzzer Tone Deinitions =
+//  ==========================
+#define  tone_c     3830    // 261 Hz
+#define  tone_d     3400    // 294 Hz
+#define  tone_e     3038    // 329 Hz
+#define  tone_f     2864    // 349 Hz
+#define  tone_g     2550    // 392 Hz
+#define  tone_a     2272    // 440 Hz
+#define  tone_b     2028    // 493 Hz
+#define  tone_C     1912    // 523 Hz
 
 
 
@@ -115,7 +132,7 @@ void setup() {
   lcd.begin(16, 2);
 
   // Splash Screen
-  printLCD("SousVido v0.30", "by Jevon Wild");
+  printLCD("SousVido v0.50", "by Jevon Wild");
 
   // Setup Pins
   pinMode(HeaterPin,        OUTPUT);
@@ -150,6 +167,9 @@ void setup() {
   // the output from the PID Controller while in the RUNNING state.
   MsTimer2::set(10, driveOutputAsync); // 10ms period
   MsTimer2::start();
+
+  // Setup an interrupt on the Ready LED, for playing a tone when it changes
+  enableInterrupt(ReadyLEDPin, playReadyBuzzer, CHANGE);
 
   delay(3000);
 }
@@ -261,7 +281,6 @@ void tune() {
     myPID.SetTunings(aTune.GetKp(), aTune.GetKi(), aTune.GetKd());
 
     changeState(RUNNING);
-    playReadyBuzzer();
   } else if(!aTuning && abs(targetTemp - currentTemp) < 0.5){
     // Autotuning hasn't been started yet, but we're within range. Start it!
     Serial.println("Starting autotune.");
@@ -375,17 +394,77 @@ void engageHeaters() {
 //  = Plays the buzzer                                                         =
 //  ============================================================================
 void playReadyBuzzer() {
-  digitalWrite(ReadyBuzzerPin, HIGH);
-  delay(200);
-  digitalWrite(ReadyBuzzerPin, LOW);
-  delay(100);
-  digitalWrite(ReadyBuzzerPin, HIGH);
-  delay(200);
-  digitalWrite(ReadyBuzzerPin, LOW);
-  delay(100);
-  digitalWrite(ReadyBuzzerPin, HIGH);
-  delay(200);
-  digitalWrite(ReadyBuzzerPin, LOW);
+  if (digitalRead(ReadyLEDPin) == HIGH) {
+    playUp();
+  } else {
+    playDown();
+  }
+}
+
+
+
+//  ============================================================================
+//  = playUp                                                                   =
+//  = ------                                                                   =
+//  = Plays an upward melody                                                   =
+//  ============================================================================
+void playUp() {
+  int melody[] = {  tone_c,  tone_d,  tone_g,  tone_C};
+  int beats[]  = { 24, 24, 24, 64};
+  int count = sizeof(melody) / 2; // Melody length, for looping.
+
+  playMelody(melody, beats, count);
+}
+
+
+
+//  ============================================================================
+//  = playDown                                                                 =
+//  = --------                                                                 =
+//  = Plays a downward melody                                                  =
+//  ============================================================================
+void playDown() {
+  int melody[] = {  tone_C,  tone_g,  tone_d,  tone_c};
+  int beats[]  = { 24, 24, 24, 64};
+  int count = sizeof(melody) / 2; // Melody length, for looping.
+
+  playMelody(melody, beats, count);
+}
+
+
+
+//  ============================================================================
+//  = playMelody                                                               =
+//  = ----------                                                               =
+//  = Plays any input melody                                                   =
+//  ============================================================================
+void playMelody(int melody[], int beats[], int notes) {
+  for (int i=0; i<notes; i++) {
+    playTone(melody[i], (beats[i] * long(4000)));
+  }
+}
+
+
+
+//  ============================================================================
+//  = playTone                                                                 =
+//  = --------                                                                 =
+//  = Plays any input tone                                                     =
+//  ============================================================================
+void playTone(int tone, long duration) {
+  long elapsed_time = 0;
+  while (elapsed_time < duration) {
+    // Up
+    digitalWrite(ReadyBuzzerPin,HIGH);
+    delayMicroseconds(tone / 2);
+
+    // Down
+    digitalWrite(ReadyBuzzerPin, LOW);
+    delayMicroseconds(tone / 2);
+
+    // Keep track of how long we pulsed
+    elapsed_time += (tone);
+  }
 }
 
 
@@ -508,3 +587,4 @@ float gettargetTemp() {
 
   return targetTemperature;
 }
+
