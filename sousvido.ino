@@ -5,10 +5,12 @@
   It's a sous vide cooker, in Arduino! Some parts based heavily on Adafruit's
   Sous Viduino <https://github.com/adafruit/Sous_Viduino>.
 
-  Uses a potentiometer know for setting temperature, and relies entirely on the
+  Uses a potentiometer for setting temperature, and relies entirely on the
   autotune library to tune the PID controller. This is for applications without
   a consistent container or heating elements.
 
+  This implementation also uses a Piezo Speaker when switching in- and out- of
+  RUNNING state, along with an LED indicator
 */
 
 // LiquidCrystal LCD Library
