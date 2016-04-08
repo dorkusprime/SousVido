@@ -132,7 +132,7 @@ void setup() {
   lcd.begin(16, 2);
 
   // Splash Screen
-  printLCD("SousVido v0.30", "by Jevon Wild");
+  printLCD("SousVido v0.50", "by Jevon Wild");
 
   // Setup Pins
   pinMode(HeaterPin,        OUTPUT);
