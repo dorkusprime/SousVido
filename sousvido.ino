@@ -43,7 +43,7 @@
 #define   ReadyBuzzerPin 9
 #define      ReadyLEDPin 10
 #define        HeaterPin 11
-#define        ButtonPin 12
+#define         PausePin 12
 #define          PumpPin 13
 
 // LCD Bus Pins
@@ -141,7 +141,7 @@ void setup() {
   pinMode(ReadyLEDPin,      OUTPUT);
   pinMode(ReadyBuzzerPin,   OUTPUT);
 
-  pinMode(ButtonPin,        INPUT);
+  pinMode(PausePin,        INPUT);
   pinMode(ThermocouplePin,  INPUT);
 
   digitalWrite(HeaterPin,   LOW);
@@ -172,6 +172,7 @@ void setup() {
 
   // Setup an interrupt on the Ready LED, for playing a tone when it changes
   enableInterrupt(ReadyLEDPin, playReadyBuzzer, CHANGE);
+  enableInterrupt(PausePin, handlePauseButton, RISING);
 
   delay(3000);
 }
@@ -182,8 +183,6 @@ void setup() {
 //  = Loop =
 //  ========
 void loop() {
-  handleButtonState(); // Change state based on Pause Button input
-
   syncTemps(); // keep our current/target temps accurate regardless of state
 
   // Change state if temperature is out of PID range
@@ -507,14 +506,12 @@ void changeState(State newState) {
 
 
 //  ============================================================================
-//  = handleButtonState                                                        =
+//  = handlePauseButton                                                        =
 //  = -----------------                                                        =
 //  = Reads the button state, and toggles current state as necessary           =
 //  ============================================================================
-void handleButtonState() {
-  if(digitalRead(ButtonPin) == HIGH && millis() - stateChangedAt > buttonBuffer){
-    changeState(currState == PAUSED ? prevState : PAUSED);
-  }
+void handlePauseButton() {
+  changeState(currState == PAUSED ? prevState : PAUSED);
 }
 
 
