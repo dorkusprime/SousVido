@@ -13,6 +13,7 @@
   RUNNING state, along with an LED indicator
 */
 
+
 // LiquidCrystal LCD Library
 #include <LiquidCrystal.h>
 
@@ -411,9 +412,9 @@ void playReadyBuzzer() {
 //  = Plays an upward melody                                                   =
 //  ============================================================================
 void playUp() {
-  int melody[] = {  tone_c,  tone_d,  tone_g,  tone_C};
-  int beats[]  = { 24, 24, 24, 64};
-  int count = sizeof(melody) / 2; // Melody length, for looping.
+  int melody[] = { tone_c,  tone_d,  tone_g,  tone_C };
+  int beats[]  = {     24,      24,      24,      64 };
+  int count = sizeof(melody) / 2;
 
   playMelody(melody, beats, count);
 }
@@ -426,9 +427,9 @@ void playUp() {
 //  = Plays a downward melody                                                  =
 //  ============================================================================
 void playDown() {
-  int melody[] = {  tone_C,  tone_g,  tone_d,  tone_c};
-  int beats[]  = { 24, 24, 24, 64};
-  int count = sizeof(melody) / 2; // Melody length, for looping.
+  int melody[] = {  tone_C,  tone_g,  tone_d,  tone_c };
+  int beats[]  = {      24,      24,      24,      64 };
+  int count = sizeof(melody) / 2;
 
   playMelody(melody, beats, count);
 }
