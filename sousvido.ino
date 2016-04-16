@@ -137,14 +137,20 @@ void setup() {
   printLCD("SousVido v0.50", "by Jevon Wild");
 
   // Setup Pins
-  pinMode(HeaterPin,        OUTPUT);
-  pinMode(ReadyLEDPin,      OUTPUT);
-  pinMode(ReadyBuzzerPin,   OUTPUT);
+  pinMode(PausePin,            INPUT);
+  pinMode(ThermocouplePin,     INPUT);
 
-  pinMode(PausePin,        INPUT);
-  pinMode(ThermocouplePin,  INPUT);
+  pinMode(PumpPin,             OUTPUT);
+  digitalWrite(PumpPin,        LOW);
 
-  digitalWrite(HeaterPin,   LOW);
+  pinMode(HeaterPin,           OUTPUT);
+  digitalWrite(HeaterPin,      LOW);
+
+  pinMode(ReadyLEDPin,         OUTPUT);
+  digitalWrite(ReadyLEDPin,    LOW);
+
+  pinMode(ReadyBuzzerPin,      OUTPUT);
+  digitalWrite(ReadyBuzzerPin, LOW);
 
   // Initialize the thermocouple
   sensors.begin();
@@ -223,9 +229,10 @@ void loop() {
 //  = The State handler for "PAUSED"                                           =
 //  ============================================================================
 void pause() {
-  digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
-  digitalWrite(HeaterPin, LOW);
+  digitalWrite(ReadyLEDPin, LOW);
+  digitalWrite(HeaterPin,   LOW);
+  digitalWrite(PumpPin,     LOW);
   printLCD(" --- PAUSED --- ", "");
 }
 
@@ -238,9 +245,10 @@ void pause() {
 //  ============================================================================
 void prime() {
   printTemps();
-  digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
-  digitalWrite(HeaterPin, HIGH);
+  digitalWrite(ReadyLEDPin, LOW);
+  digitalWrite(HeaterPin,   HIGH);
+  digitalWrite(PumpPin,     HIGH);
 }
 
 
@@ -252,9 +260,10 @@ void prime() {
 //  ============================================================================
 void rest() {
   printTemps();
-  digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
-  digitalWrite(HeaterPin, LOW);
+  digitalWrite(ReadyLEDPin, LOW);
+  digitalWrite(HeaterPin,   LOW);
+  digitalWrite(PumpPin,     HIGH);
 }
 
 
@@ -266,7 +275,10 @@ void rest() {
 //  ============================================================================
 void tune() {
   printTemps();
+
   digitalWrite(ReadyLEDPin, LOW);
+  digitalWrite(PumpPin,     HIGH);
+
   if(myPID.GetMode() != AUTOMATIC) {
     // Fire up the PID!
     myPID.SetMode(AUTOMATIC);
@@ -311,6 +323,7 @@ void tune() {
 void run() {
   printTemps();
   digitalWrite(ReadyLEDPin, HIGH);
+  digitalWrite(PumpPin,     HIGH);
 
   myPID.Compute(); // Compute PID Output, which will be used when driveOutputAsync is run.
 }
