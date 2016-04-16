@@ -225,7 +225,7 @@ void loop() {
 void pause() {
   digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
-  disengageHeaters();
+  digitalWrite(HeaterPin, LOW);
   printLCD(" --- PAUSED --- ", "");
 }
 
@@ -240,7 +240,7 @@ void prime() {
   printTemps();
   digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
-  engageHeaters();
+  digitalWrite(HeaterPin, HIGH);
 }
 
 
@@ -254,7 +254,7 @@ void rest() {
   printTemps();
   digitalWrite(ReadyLEDPin, LOW);
   myPID.SetMode(MANUAL);
-  disengageHeaters();
+  digitalWrite(HeaterPin, LOW);
 }
 
 
@@ -333,9 +333,9 @@ void driveOutputAsync() {
       windowStartTime += windowSize;
     }
     if((pidOutput > 100) && (pidOutput > (now - windowStartTime))) {
-      engageHeaters();
+      digitalWrite(HeaterPin, HIGH);
     } else {
-      disengageHeaters();
+      digitalWrite(HeaterPin, LOW);
     }
   }
 }
@@ -363,28 +363,6 @@ void printLCD(String lineOne, String lineTwo) {
     lcd.print("                ");
 
   }
-}
-
-
-
-//  ============================================================================
-//  = disengageHeaters                                                         =
-//  = ----------------                                                         =
-//  = Turns off the heaters via HeaterPin                                      =
-//  ============================================================================
-void disengageHeaters() {
-  digitalWrite(HeaterPin, LOW);
-}
-
-
-
-//  ============================================================================
-//  = engageHeaters                                                            =
-//  = -------------                                                            =
-//  = Turns on the heaters via HeaterPin                                       =
-//  ============================================================================
-void engageHeaters() {
-  digitalWrite(HeaterPin, HIGH);
 }
 
 
